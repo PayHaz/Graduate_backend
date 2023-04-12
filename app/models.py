@@ -7,16 +7,29 @@ class City(models.Model):
 
 
 class User(AbstractUser):
-    city = models.ForeignKey(City, related_name='users', on_delete=models.CASCADE)
+    city = models.ForeignKey(City, related_name='users', on_delete=models.CASCADE, blank=True, null=True)
     phone = models.CharField(max_length=30, unique=True)
 
 
 class Category(models.Model):
+
+    class Meta:
+        verbose_name = 'Категория'
+        verbose_name_plural = 'Категории'
+
     name = models.CharField(max_length=255, unique=True)
-    parent = models.ForeignKey('self', related_name='children', on_delete=models.CASCADE)
+    parent = models.ForeignKey('self', related_name='children', on_delete=models.CASCADE, blank=True, null=True)
+
+    def __str__(self):
+        return f'{self.name}'
 
 
 class Product(models.Model):
+
+    class Meta:
+        verbose_name = 'Товар'
+        verbose_name_plural = 'Товары'
+
     class ProductStatus(models.TextChoices):
         ACTIVE = 'AC', 'Активен'
         ARCHIVED = 'AR', 'В архиве'
