@@ -36,9 +36,21 @@ class Product(models.Model):
         ON_MODERATE = 'MD', 'На модерации'
         CANCELED = 'CN', 'Отклонен'
 
+    class PriceSuffix(models.TextChoices):
+        NONE = 'N', ''
+        SERVICE = 'S', 'за услугу'
+        HOUR = 'H', 'за час'
+        UNIT = 'U', 'за единицу'
+        DAY = 'D', 'за день'
+        MONTH = 'MT', 'за месяц'
+        M2 = 'M2', 'за м2'
+        M = 'M', 'за м'
+
     name = models.CharField(max_length=255)
     description = models.TextField()
     price = models.IntegerField()
+    price_suffix = models.CharField(max_length=3, choices=PriceSuffix.choices, default=PriceSuffix.NONE)
+    is_lower_bound = models.BooleanField(default=False)
     status = models.CharField(max_length=2, choices=ProductStatus.choices, default=ProductStatus.ON_MODERATE)
     author = models.ForeignKey(User, related_name='products', on_delete=models.CASCADE)
     category = models.ForeignKey(Category, related_name='products', on_delete=models.CASCADE)
