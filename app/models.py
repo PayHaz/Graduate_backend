@@ -10,7 +10,6 @@ class User(AbstractUser):
     city = models.ForeignKey(City, related_name='users', on_delete=models.CASCADE, blank=True, null=True)
     phone = models.CharField(max_length=30, unique=True)
 
-
 class Category(models.Model):
 
     class Meta:
