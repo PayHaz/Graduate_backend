@@ -7,8 +7,8 @@ class City(models.Model):
 
 
 class User(AbstractUser):
-    city = models.ForeignKey(City, related_name='users', on_delete=models.CASCADE, blank=True, null=True)
     phone = models.CharField(max_length=30, unique=True)
+
 
 class Category(models.Model):
 
@@ -29,7 +29,7 @@ class Product(models.Model):
         verbose_name = 'Товар'
         verbose_name_plural = 'Товары'
 
-    class ProductStatus(models.TextChoices):
+    class Status(models.TextChoices):
         ACTIVE = 'AC', 'Активен'
         ARCHIVED = 'AR', 'В архиве'
         ON_MODERATE = 'MD', 'На модерации'
@@ -50,11 +50,12 @@ class Product(models.Model):
     price = models.IntegerField()
     price_suffix = models.CharField(max_length=3, choices=PriceSuffix.choices, default=PriceSuffix.NONE)
     is_lower_bound = models.BooleanField(default=False)
-    status = models.CharField(max_length=2, choices=ProductStatus.choices, default=ProductStatus.ON_MODERATE)
+    status = models.CharField(max_length=2, choices=Status.choices, default=Status.ON_MODERATE)
     author = models.ForeignKey(User, related_name='products', on_delete=models.CASCADE)
     category = models.ForeignKey(Category, related_name='products', on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    city = models.ForeignKey(City, related_name='products', on_delete=models.CASCADE, null=True)
 
 
 class ProductFeature(models.Model):

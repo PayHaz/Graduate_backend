@@ -1,8 +1,8 @@
 from rest_framework import serializers
-from .models import Category, User
+from .models import Category, Product, User, City
 
 
-class CategorySerializer(serializers.ModelSerializer):
+class CategoryHierarchySerializer(serializers.ModelSerializer):
     value = serializers.IntegerField(source='id')
     title = serializers.CharField(source='name')
     children = serializers.SerializerMethodField()
@@ -12,7 +12,31 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ('value', 'title', 'children',)
 
     def get_children(self, obj):
-        return CategorySerializer(obj.children, many=True).data
+        return CategoryHierarchySerializer(obj.children, many=True).data
+
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ('id', 'name',)
+
+
+class CitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = City
+        fields = ('id', 'name',)
+
+
+class ProductSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField('get_image_url')
+
+    class Meta:
+        model = Product
+        fields = ('id', 'image', 'name', 'description', 'price', 'price_suffix', 'is_lower_bound', 'category',)
+
+    def get_image_url(self, obj: Product):
+        img = obj.images.first()
+        return img.image.url if img else None
 
 
 class UserSerializer(serializers.ModelSerializer):
