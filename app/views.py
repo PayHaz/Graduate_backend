@@ -31,8 +31,8 @@ def get_city_list(request):
 @api_view(['GET'])
 def get_product_list(request):
     products = Product.objects
-    if 'city_id' in request.COOKIES:
-        products = products.filter(city_id=int(request.COOKIES['city_id']))
+    if 'x-city-id' in request.headers:
+        products = products.filter(city_id=int(request.headers['x-city-id']))
     products = products.filter(status=Product.Status.ACTIVE).order_by('-created_at')[:20]
     return Response(ProductSerializer(products, many=True).data)
 
