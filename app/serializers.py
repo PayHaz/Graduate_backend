@@ -28,15 +28,23 @@ class CitySerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    image = serializers.SerializerMethodField('get_image_url')
+    images = serializers.SerializerMethodField('get_images_url')
+    price_suffix = serializers.CharField(source='get_price_suffix_display')
+    city_id = serializers.SerializerMethodField('get_city_id')
+    city_name = serializers.SerializerMethodField('get_city_name')
 
     class Meta:
         model = Product
-        fields = ('id', 'image', 'name', 'description', 'price', 'price_suffix', 'is_lower_bound', 'category',)
+        fields = ('id', 'images', 'name', 'description', 'price', 'price_suffix', 'is_lower_bound', 'category', 'city_id', 'city_name',)
 
-    def get_image_url(self, obj: Product):
-        img = obj.images.first()
-        return img.image.url if img else None
+    def get_images_url(self, obj: Product):
+        return [image.image.url for image in obj.images.all()]
+
+    def get_city_id(self, obj: Product):
+        return obj.city.id if obj.city else None
+
+    def get_city_name(self, obj: Product):
+        return obj.city.name if obj.city else None
 
 
 class UserSerializer(serializers.ModelSerializer):
