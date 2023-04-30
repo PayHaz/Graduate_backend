@@ -50,7 +50,7 @@ class ProductSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'city', 'phone')
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'phone')
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -58,7 +58,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'password', 'first_name', 'last_name', 'city', 'phone')
+        fields = ('id', 'username', 'email', 'password', 'first_name', 'last_name', 'phone')
 
     def create(self, validated_data):
         user = User.objects.create(
@@ -66,7 +66,6 @@ class UserCreateSerializer(serializers.ModelSerializer):
             email=validated_data['email'],
             first_name=validated_data['first_name'],
             last_name=validated_data['last_name'],
-            city=validated_data['city'],
             phone=validated_data['phone'],
         )
         user.set_password(validated_data['password'])
