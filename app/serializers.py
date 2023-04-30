@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Product, User, City
+from .models import Category, Product, User, City, ProductFeature
 
 
 class CategoryHierarchySerializer(serializers.ModelSerializer):
@@ -45,6 +45,40 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def get_city_name(self, obj: Product):
         return obj.city.name if obj.city else None
+
+
+class ProductFeatureSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductFeature
+        fields = ('name', 'value')
+
+
+class ProductCreateSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(required=False)
+    city = serializers.PrimaryKeyRelatedField(queryset=City.objects.all())
+    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
+    features = ProductFeatureSerializer(many=True)
+
+    class Meta:
+        model = Product
+        fields = (
+            'id',
+            'name',
+            'description',
+            'price',
+            'price_suffix',
+            'is_lower_bound',
+            'category',
+            'city',
+            'features'
+        )
+
+    def create(self, validated_data):
+        features_data = validated_data.pop('features')
+        product = Product.objects.create(**validated_data)
+        for feature in features_data:
+            ProductFeature.objects.create(product=product, **feature)
+        return product
 
 
 class UserSerializer(serializers.ModelSerializer):

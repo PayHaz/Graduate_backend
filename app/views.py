@@ -1,13 +1,14 @@
 from rest_framework import generics
 from rest_framework.decorators import api_view
 from rest_framework.permissions import AllowAny
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework import generics
 
 from .models import Category, Product, User, City
-from .serializers import CategoryHierarchySerializer, CategorySerializer, ProductSerializer, UserCreateSerializer, UserSerializer, CitySerializer
+from .serializers import CategoryHierarchySerializer, CategorySerializer, ProductSerializer, UserCreateSerializer, UserSerializer, CitySerializer, ProductCreateSerializer
 
 
 @api_view(['GET'])
@@ -28,13 +29,22 @@ def get_city_list(request):
     return Response(CitySerializer(cities, many=True).data)
 
 
-@api_view(['GET'])
-def get_product_list(request):
-    products = Product.objects
-    if 'x-city-id' in request.headers:
-        products = products.filter(city_id=int(request.headers['x-city-id']))
-    products = products.filter(status=Product.Status.ACTIVE).order_by('-created_at')[:20]
-    return Response(ProductSerializer(products, many=True).data)
+class ProductList(generics.ListCreateAPIView):
+    queryset = Product.objects.all()
+    serializer_class = ProductCreateSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def list(self, request, **kwargs):
+        queryset = self.get_queryset()
+        if 'x-city-id' in request.headers:
+            queryset = queryset.filter(city_id=int(request.headers['x-city-id']))
+        queryset = queryset.filter(status=Product.Status.ACTIVE).order_by('-created_at')[:20]
+        serializer = ProductSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def perform_create(self, serializer):
+        author = self.request.user
+        serializer.save(author=author)
 
 
 class UserView(APIView):
