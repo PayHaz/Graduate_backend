@@ -1,15 +1,15 @@
+from rest_framework import generics
 from rest_framework.decorators import api_view, parser_classes
-from rest_framework.decorators import api_view, parser_classes
-from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework import generics
+from rest_framework.parsers import FileUploadParser, MultiPartParser
 
 from .models import Category, Product, User, City
-from .serializers import CategoryHierarchySerializer, CategorySerializer, ProductSerializer, UserCreateSerializer, \
-    UserSerializer, CitySerializer, ProductCreateSerializer, ProductImageSerializer
+from .serializers import CategoryHierarchySerializer, CategorySerializer, ProductSerializer, UserCreateSerializer, UserSerializer, CitySerializer, ProductCreateSerializer, ProductImageSerializer
 
 
 @api_view(['GET'])
