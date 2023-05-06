@@ -83,17 +83,17 @@ class ProductCreateSerializer(serializers.ModelSerializer):
 
 class ProductImageSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)
-    file = serializers.ListField(
+    images = serializers.ListField(
         child=serializers.ImageField(allow_empty_file=False, use_url=False),
         write_only=True
     )
 
     class Meta:
         model = ProductImage
-        fields = ('id', 'file')
+        fields = ('id', 'images')
 
     def create(self, validated_data):
-        uploaded_images = validated_data.pop("file")
+        uploaded_images = validated_data.pop("images")
         for image in uploaded_images:
             ProductImage.objects.create(product_id=validated_data['product_id'], image=image)
         return uploaded_images
