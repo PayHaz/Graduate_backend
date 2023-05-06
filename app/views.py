@@ -1,14 +1,15 @@
-from rest_framework import generics
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, parser_classes
+from rest_framework.decorators import api_view, parser_classes
+from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework import generics
 
 from .models import Category, Product, User, City
-from .serializers import CategoryHierarchySerializer, CategorySerializer, ProductSerializer, UserCreateSerializer, UserSerializer, CitySerializer, ProductCreateSerializer
+from .serializers import CategoryHierarchySerializer, CategorySerializer, ProductSerializer, UserCreateSerializer, \
+    UserSerializer, CitySerializer, ProductCreateSerializer, ProductImageSerializer
 
 
 @api_view(['GET'])
@@ -45,6 +46,17 @@ class ProductList(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         author = self.request.user
         serializer.save(author=author)
+
+
+@api_view(['POST'])
+@parser_classes([MultiPartParser, FileUploadParser])
+def upload_product_images(request, product_id):
+    serializer = ProductImageSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(product_id=product_id)
+        return Response(status=201)
+    else:
+        return Response(status=400)
 
 
 class UserView(APIView):

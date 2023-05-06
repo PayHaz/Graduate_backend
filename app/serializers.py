@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Product, User, City, ProductFeature
+from .models import Category, Product, User, City, ProductFeature, ProductImage
 
 
 class CategoryHierarchySerializer(serializers.ModelSerializer):
@@ -79,6 +79,24 @@ class ProductCreateSerializer(serializers.ModelSerializer):
         for feature in features_data:
             ProductFeature.objects.create(product=product, **feature)
         return product
+
+
+class ProductImageSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(required=False)
+    images = serializers.ListField(
+        child=serializers.ImageField(allow_empty_file=False, use_url=False),
+        write_only=True
+    )
+
+    class Meta:
+        model = ProductImage
+        fields = ('id', 'images')
+
+    def create(self, validated_data):
+        uploaded_images = validated_data.pop("images")
+        for image in uploaded_images:
+            ProductImage.objects.create(product_id=validated_data['product_id'], image=image)
+        return uploaded_images
 
 
 class UserSerializer(serializers.ModelSerializer):
