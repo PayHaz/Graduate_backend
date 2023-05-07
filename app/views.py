@@ -34,18 +34,31 @@ class ProductList(generics.ListCreateAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductCreateSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
+    authentication_classes = [JWTAuthentication]
 
     def list(self, request, **kwargs):
         queryset = self.get_queryset()
-        if 'x-city-id' in request.headers:
-            queryset = queryset.filter(city_id=int(request.headers['x-city-id']))
-        queryset = queryset.filter(status=Product.Status.ACTIVE).order_by('-created_at')[:20]
+
+        # проверяем наличие jwt токена
+        if request.user.is_authenticated:
+            # получаем пользователя из токена
+            user = request.user
+            queryset = queryset.filter(author=user)
+        else:
+            # если пользователь не аутентифицирован, то фильтруем по x-city-id
+            if 'x-city-id' in request.headers:
+                queryset = queryset.filter(city_id=int(request.headers['x-city-id']))
+            else:
+                # если x-city-id не передан, то выводим все продукты
+                pass
+
+        # получаем значение параметра status из URL
+        status = request.query_params.get('status', 'AC')
+
+        # фильтруем по статусу
+        queryset = queryset.filter(status=status).order_by('-created_at')[:20]
         serializer = ProductSerializer(queryset, many=True)
         return Response(serializer.data)
-
-    def perform_create(self, serializer):
-        author = self.request.user
-        serializer.save(author=author)
 
 
 class ProductDetail(generics.RetrieveAPIView):
