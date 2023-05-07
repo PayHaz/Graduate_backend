@@ -47,6 +47,7 @@ class ProductSerializer(serializers.ModelSerializer):
         return obj.city.name if obj.city else None
 
 
+
 class ProductFeatureSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductFeature
@@ -79,6 +80,8 @@ class ProductCreateSerializer(serializers.ModelSerializer):
         for feature in features_data:
             ProductFeature.objects.create(product=product, **feature)
         return product
+
+
 
 
 class ProductImageSerializer(serializers.ModelSerializer):

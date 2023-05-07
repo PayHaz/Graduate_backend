@@ -53,12 +53,18 @@ class ProductList(generics.ListCreateAPIView):
                 pass
 
         # получаем значение параметра status из URL
-        status = request.query_params.get('status', 'AC')
+        status = request.query_params.get('status', 'ACTIVE')
 
         # фильтруем по статусу
         queryset = queryset.filter(status=status).order_by('-created_at')[:20]
         serializer = ProductSerializer(queryset, many=True)
         return Response(serializer.data)
+
+    def perform_create(self, serializer):
+        author = self.request.user
+        serializer.save(author=author)
+
+
 
 
 class ProductDetail(generics.RetrieveAPIView):
