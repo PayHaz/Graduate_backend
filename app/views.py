@@ -48,6 +48,12 @@ class ProductList(generics.ListCreateAPIView):
         serializer.save(author=author)
 
 
+class ProductDetail(generics.RetrieveAPIView):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+
 @api_view(['POST'])
 @parser_classes([MultiPartParser, FileUploadParser])
 def upload_product_images(request, product_id):
