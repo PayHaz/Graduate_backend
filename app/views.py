@@ -1,12 +1,15 @@
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.permissions import AllowAny
+from django.db.models import Q
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework import generics
 from rest_framework.parsers import FileUploadParser, MultiPartParser
+from unidecode import unidecode
+import urllib.parse
 
 from .models import Category, Product, User, City
 from .serializers import CategoryHierarchySerializer, CategorySerializer, ProductSerializer, UserCreateSerializer, UserSerializer, CitySerializer, ProductCreateSerializer, ProductImageSerializer
@@ -65,6 +68,22 @@ class ProductList(generics.ListCreateAPIView):
         serializer.save(author=author)
 
 
+class ProductSearchView(generics.ListAPIView):
+    serializer_class = ProductSerializer
+
+    def get_queryset(self):
+        search_name = self.request.query_params.get('name')
+        search_city = self.request.query_params.get('city')
+        if search_name:
+            if search_city:
+                queryset = Product.objects.filter(Q(name__icontains=search_name) & Q(city_id=search_city))
+            else:
+                queryset = Product.objects.filter(Q(name__icontains=search_name))
+        else:
+            queryset = Product.objects.all()
+        return queryset
+
+
 class ProductDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
@@ -94,11 +113,6 @@ class ProductDetail(generics.RetrieveUpdateDestroyAPIView):
         serializer.save(status=request.data.get('status'))
         return Response(serializer.data)
 
-
-class ProductDetailPublic(generics.RetrieveAPIView):
-    queryset = Product.objects.all()
-    serializer_class = ProductSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
 
 
 @api_view(['POST'])

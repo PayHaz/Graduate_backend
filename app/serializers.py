@@ -48,6 +48,8 @@ class ProductSerializer(serializers.ModelSerializer):
 
 
 
+
+
 class ProductFeatureSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductFeature
