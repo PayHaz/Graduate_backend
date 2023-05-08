@@ -49,8 +49,8 @@ class ProductList(generics.ListCreateAPIView):
             if 'x-city-id' in request.headers:
                 queryset = queryset.filter(city_id=int(request.headers['x-city-id']))
             else:
-                # если x-city-id не передан, то выводим все продукты
-                pass
+                # если x-city-id не передан, то выводим все продукты со статусом active
+                queryset = queryset.filter(status='AC')
 
         # получаем значение параметра status из URL
         status = request.query_params.get('status', 'ACTIVE')
@@ -68,7 +68,7 @@ class ProductList(generics.ListCreateAPIView):
 class ProductDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedOrReadOnly]
     authentication_classes = [JWTAuthentication]
 
     def perform_destroy(self, instance):
@@ -77,7 +77,6 @@ class ProductDetail(generics.RetrieveUpdateDestroyAPIView):
     def delete(self, request, *args, **kwargs):
         instance = self.get_object()
 
-        # проверяем, что пользователь является автором продукта
         if instance.author != request.user:
             return Response(status=status.HTTP_403_FORBIDDEN)
 
@@ -87,14 +86,19 @@ class ProductDetail(generics.RetrieveUpdateDestroyAPIView):
     def put(self, request, *args, **kwargs):
         instance = self.get_object()
 
-        # проверяем, что пользователь является автором продукта
         if instance.author != request.user:
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save(status=request.data.get('status')) # изменяем только статус на переданное значение
+        serializer.save(status=request.data.get('status'))
         return Response(serializer.data)
+
+
+class ProductDetailPublic(generics.RetrieveAPIView):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
 
 @api_view(['POST'])
