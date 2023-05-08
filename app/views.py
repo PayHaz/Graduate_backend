@@ -1,4 +1,4 @@
-from rest_framework import generics
+from rest_framework import generics, status
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
@@ -65,12 +65,36 @@ class ProductList(generics.ListCreateAPIView):
         serializer.save(author=author)
 
 
-
-
-class ProductDetail(generics.RetrieveAPIView):
+class ProductDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def perform_destroy(self, instance):
+        instance.delete()
+
+    def delete(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        # проверяем, что пользователь является автором продукта
+        if instance.author != request.user:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def put(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        # проверяем, что пользователь является автором продукта
+        if instance.author != request.user:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(status=request.data.get('status')) # изменяем только статус на переданное значение
+        return Response(serializer.data)
 
 
 @api_view(['POST'])
