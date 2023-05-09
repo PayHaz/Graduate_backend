@@ -1,3 +1,4 @@
+from django.db.models import Max, Min
 from rest_framework import serializers
 from .models import Category, Product, User, City, ProductFeature, ProductImage
 
@@ -33,9 +34,12 @@ class ProductSerializer(serializers.ModelSerializer):
     city_id = serializers.SerializerMethodField('get_city_id')
     city_name = serializers.SerializerMethodField('get_city_name')
 
+    min_price = serializers.SerializerMethodField()
+    max_price = serializers.SerializerMethodField()
+
     class Meta:
         model = Product
-        fields = ('id', 'images', 'name', 'description', 'price', 'price_suffix', 'is_lower_bound', 'category', 'city_id', 'city_name',)
+        fields = ('id', 'images', 'name', 'description', 'price', 'price_suffix', 'is_lower_bound', 'category', 'city_id', 'city_name', 'min_price', 'max_price',)
 
     def get_images_url(self, obj: Product):
         return [image.image.url for image in obj.images.all()]
@@ -46,8 +50,21 @@ class ProductSerializer(serializers.ModelSerializer):
     def get_city_name(self, obj: Product):
         return obj.city.name if obj.city else None
 
+    def get_min_price(self, obj):
+        min_price_filtered = self.context.get('min_price')
+        if min_price_filtered is None:
+            # Если значение не передано, то возвращаем минимальную стоимость по умолчанию
+            return obj.price
+        else:
+            return min(obj.price, min_price_filtered)
 
-
+    def get_max_price(self, obj):
+        max_price_filtered = self.context.get('max_price')
+        if max_price_filtered is None:
+            # Если значение не передано, то возвращаем максимальную стоимость по умолчанию
+            return obj.price
+        else:
+            return max(obj.price, max_price_filtered)
 
 
 class ProductFeatureSerializer(serializers.ModelSerializer):

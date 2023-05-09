@@ -1,15 +1,13 @@
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.permissions import AllowAny
-from django.db.models import Q
+from django.db.models import Max, Min
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework import generics
 from rest_framework.parsers import FileUploadParser, MultiPartParser
-from unidecode import unidecode
-import urllib.parse
 
 from .models import Category, Product, User, City
 from .serializers import CategoryHierarchySerializer, CategorySerializer, ProductSerializer, UserCreateSerializer, UserSerializer, CitySerializer, ProductCreateSerializer, ProductImageSerializer
@@ -74,14 +72,61 @@ class ProductSearchView(generics.ListAPIView):
     def get_queryset(self):
         search_name = self.request.query_params.get('name')
         search_city = self.request.query_params.get('city')
-        if search_name:
-            if search_city:
-                queryset = Product.objects.filter(Q(name__icontains=search_name) & Q(city_id=search_city))
-            else:
-                queryset = Product.objects.filter(Q(name__icontains=search_name))
+        search_category = self.request.query_params.get('category')
+        min_price = self.request.query_params.get('minRange')
+        max_price = self.request.query_params.get('maxRange')
+
+        if search_category:
+            # Получаем все дочерние категории
+            category_ids = [int(search_category)]
+            category_ids += self.get_child_categories(int(search_category))
+
+            queryset = Product.objects.filter(category_id__in=category_ids)
         else:
             queryset = Product.objects.all()
+
+        if search_name:
+            queryset = queryset.filter(name__icontains=search_name)
+
+        if search_city:
+            queryset = queryset.filter(city_id=search_city)
+
+        if min_price and max_price:
+            queryset = queryset.filter(price__range=(min_price, max_price))
+
+        # Вычисляем минимальную и максимальную стоимость только для отфильтрованных продуктов
+        min_price_filtered = queryset.aggregate(Min('price'))['price__min']
+        max_price_filtered = queryset.aggregate(Max('price'))['price__max']
+
+        # Добавляем значения минимальной и максимальной стоимости в контекст для использования в сериализаторе
+        self.kwargs['min_price'] = min_price_filtered
+        self.kwargs['max_price'] = max_price_filtered
+
         return queryset
+
+    def get_child_categories(self, category_id):
+        # Рекурсивная функция для получения всех дочерних категорий
+        category_ids = []
+        children = Category.objects.filter(parent_id=category_id)
+        for child in children:
+            category_ids.append(child.id)
+            category_ids += self.get_child_categories(child.id)
+        return category_ids
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['min_price'] = self.kwargs.get('min_price')
+        context['max_price'] = self.kwargs.get('max_price')
+        return context
+
+    def get_child_categories(self, category_id):
+        # Рекурсивная функция для получения всех дочерних категорий
+        category_ids = []
+        children = Category.objects.filter(parent_id=category_id)
+        for child in children:
+            category_ids.append(child.id)
+            category_ids += self.get_child_categories(child.id)
+        return category_ids
 
 
 class ProductDetail(generics.RetrieveUpdateDestroyAPIView):
