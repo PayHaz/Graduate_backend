@@ -15,8 +15,17 @@ from .serializers import CategoryHierarchySerializer, CategorySerializer, Produc
 
 @api_view(['GET'])
 def get_category_tree(request):
-    parent_categories = Category.objects.filter(parent_id=None)
-    return Response(CategoryHierarchySerializer(parent_categories, many=True).data)
+    category_id = request.query_params.get('category')
+    if category_id:
+        try:
+            category = Category.objects.get(id=category_id)
+            child_categories = category.get_descendants(include_self=True)
+            return Response(CategoryHierarchySerializer(child_categories, many=True).data)
+        except Category.DoesNotExist:
+            return Response({'error': 'Category not found'}, status=status.HTTP_404_NOT_FOUND)
+    else:
+        parent_categories = Category.objects.filter(parent_id=None)
+        return Response(CategoryHierarchySerializer(parent_categories, many=True).data)
 
 
 @api_view(['GET'])
