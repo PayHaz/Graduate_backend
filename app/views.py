@@ -19,7 +19,8 @@ def get_category_tree(request):
     if category_id:
         try:
             category = Category.objects.get(id=category_id)
-            child_categories = category.get_descendants(include_self=True)
+            child_categories = category.get_descendants()
+            child_categories.append(category)
             return Response(CategoryHierarchySerializer(child_categories, many=True).data)
         except Category.DoesNotExist:
             return Response({'error': 'Category not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -85,14 +86,14 @@ class ProductSearchView(generics.ListAPIView):
         min_price = self.request.query_params.get('minRange')
         max_price = self.request.query_params.get('maxRange')
 
+        queryset = Product.objects.filter(status='AC')
+
         if search_category:
             # Получаем все дочерние категории
             category_ids = [int(search_category)]
             category_ids += self.get_child_categories(int(search_category))
 
-            queryset = Product.objects.filter(category_id__in=category_ids)
-        else:
-            queryset = Product.objects.all()
+            queryset = queryset.filter(category_id__in=category_ids)
 
         if search_name:
             queryset = queryset.filter(name__icontains=search_name)
