@@ -1,6 +1,11 @@
+import uuid
+
+from django.core.files.base import ContentFile
 from django.db.models import Max, Min
 from rest_framework import serializers
 from .models import Category, Product, User, City, ProductFeature, ProductImage
+from PIL import Image
+from io import BytesIO
 
 
 class CategoryHierarchySerializer(serializers.ModelSerializer):
@@ -33,6 +38,7 @@ class ProductSerializer(serializers.ModelSerializer):
     price_suffix = serializers.CharField(source='get_price_suffix_display')
     city_id = serializers.SerializerMethodField('get_city_id')
     city_name = serializers.SerializerMethodField('get_city_name')
+    images = serializers.SerializerMethodField('get_images')
 
     min_price = serializers.SerializerMethodField()
     max_price = serializers.SerializerMethodField()
@@ -41,8 +47,8 @@ class ProductSerializer(serializers.ModelSerializer):
         model = Product
         fields = ('id', 'images', 'name', 'description', 'price', 'price_suffix', 'is_lower_bound', 'category', 'city_id', 'city_name', 'min_price', 'max_price',)
 
-    def get_images_url(self, obj: Product):
-        return [image.image.url for image in obj.images.all()]
+    def get_images(self, obj):
+        return [{'id': image.id, 'img': image.image.url} for image in obj.images.all()]
 
     def get_city_id(self, obj: Product):
         return obj.city.id if obj.city else None
@@ -101,8 +107,6 @@ class ProductCreateSerializer(serializers.ModelSerializer):
         return product
 
 
-
-
 class ProductImageSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)
     images = serializers.ListField(
@@ -116,8 +120,9 @@ class ProductImageSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         uploaded_images = validated_data.pop("images")
+        product_id = self.context['request'].parser_context['kwargs']['product_id']
         for image in uploaded_images:
-            ProductImage.objects.create(product_id=validated_data['product_id'], image=image)
+            ProductImage.objects.create(product_id=product_id, image=image)
         return uploaded_images
 
 

@@ -18,6 +18,7 @@ urlpatterns = [
     path('product/<int:product_id>/image', views.upload_product_images),
     path('search/', views.ProductSearchView.as_view(), name='product-search'),
     path('product/<int:pk>/', views.ProductDetail.as_view(), name='product-detail'),
+    path('products/<int:product_id>/images/<int:image_id>/', views.delete_product_image, name='delete_image'),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/register/', UserCreateAPIView.as_view(), name='register'),

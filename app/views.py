@@ -1,5 +1,6 @@
+import status as status
 from rest_framework import generics, status
-from rest_framework.decorators import api_view, parser_classes
+from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.permissions import AllowAny
 from django.db.models import Max, Min
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
@@ -8,8 +9,11 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework import generics
 from rest_framework.parsers import FileUploadParser, MultiPartParser
+from django.core.exceptions import PermissionDenied
+from rest_framework.permissions import BasePermission
+import status
 
-from .models import Category, Product, User, City
+from .models import Category, Product, User, City, ProductImage
 from .serializers import CategoryHierarchySerializer, CategorySerializer, ProductSerializer, UserCreateSerializer, UserSerializer, CitySerializer, ProductCreateSerializer, ProductImageSerializer
 
 
@@ -139,10 +143,16 @@ class ProductSearchView(generics.ListAPIView):
         return category_ids
 
 
+class IsOwnerOrReadOnly(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return True
+        return obj.author == request.user
+
 class ProductDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
     authentication_classes = [JWTAuthentication]
 
     def perform_destroy(self, instance):
@@ -151,8 +161,11 @@ class ProductDetail(generics.RetrieveUpdateDestroyAPIView):
     def delete(self, request, *args, **kwargs):
         instance = self.get_object()
 
+        if not request.user.is_authenticated:
+            return Response("Вы не являетесь автором этого продукта", status=status.HTTP_401_UNAUTHORIZED)
+
         if instance.author != request.user:
-            return Response(status=status.HTTP_403_FORBIDDEN)
+            return Response("Вы не являетесь автором этого продукта", status=status.HTTP_403_FORBIDDEN)
 
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -160,8 +173,11 @@ class ProductDetail(generics.RetrieveUpdateDestroyAPIView):
     def put(self, request, *args, **kwargs):
         instance = self.get_object()
 
+        if not request.user.is_authenticated:
+            return self.retrieve(request, *args, **kwargs)
+
         if instance.author != request.user:
-            return Response(status=status.HTTP_403_FORBIDDEN)
+            return Response("Вы не являетесь автором этого продукта", status=status.HTTP_403_FORBIDDEN)
 
         status = request.data.get('status',
                                   instance.status)  # используем новый статус, если он был передан, или старый статус, если новый статус не был передан
@@ -174,8 +190,11 @@ class ProductDetail(generics.RetrieveUpdateDestroyAPIView):
     def patch(self, request, *args, **kwargs):
         instance = self.get_object()
 
+        if not request.user.is_authenticated:
+            return self.retrieve(request, *args, **kwargs)
+
         if instance.author != request.user:
-            return Response(status=status.HTTP_403_FORBIDDEN)
+            return Response("Вы не являетесь автором этого продукта", status=status.HTTP_403_FORBIDDEN)
 
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -186,13 +205,29 @@ class ProductDetail(generics.RetrieveUpdateDestroyAPIView):
 
 @api_view(['POST'])
 @parser_classes([MultiPartParser, FileUploadParser])
+@permission_classes([IsAuthenticated])
 def upload_product_images(request, product_id):
-    serializer = ProductImageSerializer(data=request.data)
+    serializer = ProductImageSerializer(data=request.data, context={'request': request})
     if serializer.is_valid():
-        serializer.save(product_id=product_id)
+        product = Product.objects.get(id=product_id)
+        if product.author != request.user:
+            raise PermissionDenied("You are not the owner of this product")
+        serializer.save(product=product)
         return Response(status=201)
     else:
-        return Response(status=400)
+        return Response(serializer.errors, status=400)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_product_image(request, product_id, image_id):
+    try:
+        product_image = ProductImage.objects.get(id=image_id, product_id=product_id)
+        if product_image.product.author != request.user:
+            raise PermissionDenied("You are not the owner of this product")
+        product_image.delete()
+        return Response(status=204)
+    except ProductImage.DoesNotExist:
+        return Response(status=404)
 
 
 class UserView(APIView):
