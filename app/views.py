@@ -163,9 +163,23 @@ class ProductDetail(generics.RetrieveUpdateDestroyAPIView):
         if instance.author != request.user:
             return Response(status=status.HTTP_403_FORBIDDEN)
 
+        status = request.data.get('status',
+                                  instance.status)  # используем новый статус, если он был передан, или старый статус, если новый статус не был передан
+
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save(status=request.data.get('status'))
+        serializer.save(status=status)
+        return Response(serializer.data)
+
+    def patch(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        if instance.author != request.user:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
         return Response(serializer.data)
 
 
