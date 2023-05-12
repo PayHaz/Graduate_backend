@@ -1,4 +1,4 @@
-import status as status
+
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.permissions import AllowAny
@@ -11,7 +11,7 @@ from rest_framework import generics
 from rest_framework.parsers import FileUploadParser, MultiPartParser
 from django.core.exceptions import PermissionDenied
 from rest_framework.permissions import BasePermission
-import status
+
 
 from .models import Category, Product, User, City, ProductImage
 from .serializers import CategoryHierarchySerializer, CategorySerializer, ProductSerializer, UserCreateSerializer, UserSerializer, CitySerializer, ProductCreateSerializer, ProductImageSerializer
@@ -149,11 +149,25 @@ class IsOwnerOrReadOnly(BasePermission):
             return True
         return obj.author == request.user
 
+
 class ProductDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
     authentication_classes = [JWTAuthentication]
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        if not request.auth:
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data)
+
+        if instance.author != request.user:
+            return Response("Вы не являетесь автором этого продукта", status=status.HTTP_403_FORBIDDEN)
+
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
 
     def perform_destroy(self, instance):
         instance.delete()
@@ -177,14 +191,17 @@ class ProductDetail(generics.RetrieveUpdateDestroyAPIView):
             return self.retrieve(request, *args, **kwargs)
 
         if instance.author != request.user:
-            return Response("Вы не являетесь автором этого продукта", status=status.HTTP_403_FORBIDDEN)
+            return Response("Вы не являетесь автором этого продукта")
 
         status = request.data.get('status',
-                                  instance.status)  # используем новый статус, если он был передан, или старый статус, если новый статус не был передан
+                                  instance.status)
+        city_id = request.data.get('city_id', instance.city_id)
+
+        price_suffix = request.data.get('price_suffix', instance.price_suffix)
 
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save(status=status)
+        serializer.save(status=status, city_id=city_id, price_suffix=price_suffix)
         return Response(serializer.data)
 
     def patch(self, request, *args, **kwargs):
