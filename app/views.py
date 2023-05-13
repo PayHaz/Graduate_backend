@@ -14,7 +14,8 @@ from rest_framework.permissions import BasePermission
 
 
 from .models import Category, Product, User, City, ProductImage
-from .serializers import CategoryHierarchySerializer, CategorySerializer, ProductSerializer, UserCreateSerializer, UserSerializer, CitySerializer, ProductCreateSerializer, ProductImageSerializer
+from .serializers import CategoryHierarchySerializer, CategorySerializer, ProductSerializer, UserCreateSerializer, \
+    UserSerializer, CitySerializer, ProductCreateSerializer, ProductImageSerializer, UserUpdateSerializer
 
 
 @api_view(['GET'])
@@ -265,4 +266,12 @@ class UserCreateAPIView(generics.CreateAPIView):
 class UserRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
+
+    def put(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = UserUpdateSerializer(instance, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
