@@ -13,7 +13,7 @@ from django.core.exceptions import PermissionDenied
 from rest_framework.permissions import BasePermission
 
 
-from .models import Category, Product, User, City, ProductImage
+from .models import Category, Product, User, City, ProductImage, ProductFavorite
 from .serializers import CategoryHierarchySerializer, CategorySerializer, ProductSerializer, UserCreateSerializer, \
     UserSerializer, CitySerializer, ProductCreateSerializer, ProductImageSerializer, UserUpdateSerializer
 
@@ -73,7 +73,7 @@ class ProductList(generics.ListCreateAPIView):
 
         # фильтруем по статусу
         queryset = queryset.filter(status=status).order_by('-created_at')[:20]
-        serializer = ProductSerializer(queryset, many=True)
+        serializer = ProductSerializer(queryset, many=True, context={'request': request})
         return Response(serializer.data)
 
     def perform_create(self, serializer):
@@ -248,12 +248,24 @@ def delete_product_image(request, product_id, image_id):
         return Response(status=404)
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_or_delete_favorite(request, product_id):
+    if ProductFavorite.objects.filter(user_id=request.user.id, product_id=product_id).exists():
+        ProductFavorite.objects.filter(user_id=request.user.id, product_id=product_id).delete()
+        return Response(False, status=200)
+    else:
+        fav = ProductFavorite(user_id=request.user.id, product_id=product_id)
+        fav.save()
+        return Response(True, status=200)
+
+
 class UserView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
     def get(self, request):
-        serializer = UserSerializer(request.user)
+        serializer = UserSerializer(request.user, context={'request': request})
         return Response(serializer.data)
 
 
