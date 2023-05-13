@@ -54,9 +54,10 @@ class ProductList(generics.ListCreateAPIView):
 
     def list(self, request, **kwargs):
         queryset = self.get_queryset()
+        own = self.request.query_params.get('own', False)
 
         # проверяем наличие jwt токена
-        if request.user.is_authenticated:
+        if own:
             # получаем пользователя из токена
             user = request.user
             queryset = queryset.filter(author=user)
