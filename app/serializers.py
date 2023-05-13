@@ -33,6 +33,18 @@ class CitySerializer(serializers.ModelSerializer):
         fields = ('id', 'name',)
 
 
+class ProductFeatureSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductFeature
+        fields = ('name', 'value')
+
+    def update(self, instance, validated_data):
+        instance.name = validated_data.get('name', instance.name)
+        instance.value = validated_data.get('value', instance.value)
+        instance.save()
+        return instance
+
+
 class ProductSerializer(serializers.ModelSerializer):
     images = serializers.SerializerMethodField('get_images_url')
     price_suffix = serializers.CharField(source='get_price_suffix_display')
@@ -42,10 +54,11 @@ class ProductSerializer(serializers.ModelSerializer):
 
     min_price = serializers.SerializerMethodField()
     max_price = serializers.SerializerMethodField()
+    features = ProductFeatureSerializer(many=True)
 
     class Meta:
         model = Product
-        fields = ('id', 'images', 'name', 'description', 'price', 'price_suffix', 'is_lower_bound', 'category', 'city_id', 'city_name', 'min_price', 'max_price',)
+        fields = ('id', 'images', 'name', 'description', 'price', 'price_suffix', 'is_lower_bound', 'category', 'city_id', 'city_name', 'min_price', 'max_price', 'features')
 
     def get_images(self, obj):
         return [{'id': image.id, 'img': image.image.url} for image in obj.images.all()]
@@ -72,18 +85,26 @@ class ProductSerializer(serializers.ModelSerializer):
         else:
             return max(obj.price, max_price_filtered)
 
+    def update(self, instance, validated_data):
+        features_data = validated_data.pop('features', [])
+        instance.features.all().delete()
+        for feature_data in features_data:
+            name = feature_data.get('name')
+            value = feature_data.get('value')
+            ProductFeature.objects.create(product=instance, name=name, value=value)
 
-class ProductFeatureSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ProductFeature
-        fields = ('name', 'value')
+        for key, value in validated_data.items():
+            setattr(instance, key, value)
+
+        instance.save()
+        return instance
 
 
 class ProductCreateSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)
     city = serializers.PrimaryKeyRelatedField(queryset=City.objects.all())
     category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
-    features = ProductFeatureSerializer(many=True)
+    features = ProductFeatureSerializer(many=True, required=False)
 
     class Meta:
         model = Product
@@ -100,7 +121,7 @@ class ProductCreateSerializer(serializers.ModelSerializer):
         )
 
     def create(self, validated_data):
-        features_data = validated_data.pop('features')
+        features_data = validated_data.pop('features', [])
         product = Product.objects.create(**validated_data)
         for feature in features_data:
             ProductFeature.objects.create(product=product, **feature)

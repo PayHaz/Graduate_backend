@@ -44,7 +44,7 @@ class Product(models.Model):
         CANCELED = 'CN', 'Отклонен'
 
     class PriceSuffix(models.TextChoices):
-        NONE = 'N', ''
+        NONE = 'N', 'руб'
         SERVICE = 'S', 'за услугу'
         HOUR = 'H', 'за час'
         UNIT = 'U', 'за единицу'
