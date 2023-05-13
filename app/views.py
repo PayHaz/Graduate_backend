@@ -63,8 +63,8 @@ class ProductList(generics.ListCreateAPIView):
             queryset = queryset.filter(author=user)
         else:
             # если пользователь не аутентифицирован, то фильтруем по x-city-id
-            if 'x-city-id' in request.headers:
-                queryset = queryset.filter(city_id=int(request.headers['x-city-id']))
+            if 'city' in self.request.query_params:
+                queryset = queryset.filter(city_id=int(self.request.query_params['city']))
             else:
                 # если x-city-id не передан, то выводим все продукты со статусом active
                 queryset = queryset.filter(status='AC')
