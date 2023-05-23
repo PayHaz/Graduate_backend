@@ -40,6 +40,12 @@ class ProductFeatureSerializer(serializers.ModelSerializer):
         return instance
 
 
+class UserDataSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'email', 'phone')
+
+
 class ProductSerializer(serializers.ModelSerializer):
     price_suffix = serializers.CharField(source='get_price_suffix_display')
     city_id = serializers.SerializerMethodField('get_city_id')
@@ -50,10 +56,11 @@ class ProductSerializer(serializers.ModelSerializer):
     max_price = serializers.SerializerMethodField()
     features = ProductFeatureSerializer(many=True)
     is_favorite = serializers.SerializerMethodField('is_favorite_method')
+    author = UserDataSerializer()
 
     class Meta:
         model = Product
-        fields = ('id', 'images', 'name', 'description', 'price', 'price_suffix', 'is_lower_bound', 'category', 'city_id', 'city_name', 'min_price', 'max_price', 'features', 'is_favorite')
+        fields = ('id', 'images', 'name', 'description', 'price', 'price_suffix', 'is_lower_bound', 'category', 'city_id', 'city_name', 'min_price', 'max_price', 'features', 'is_favorite', 'author')
 
     def get_images(self, obj):
         return [{'id': image.id, 'img': image.image.url} for image in obj.images.all()]
@@ -104,6 +111,25 @@ class ProductSerializer(serializers.ModelSerializer):
         return instance
 
 
+class UserSerializer(serializers.ModelSerializer):
+    favorites = serializers.SerializerMethodField('get_favorites')
+
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'phone', 'favorites')
+
+    def get_favorites(self, obj):
+        return ProductSerializer([fav.product for fav in obj.favorites.all()], many=True, context=self.context).data
+
+    def update(self, instance, validated_data):
+        instance.email = validated_data.get('email', instance.email)
+        instance.first_name = validated_data.get('first_name', instance.first_name)
+        instance.last_name = validated_data.get('last_name', instance.last_name)
+        instance.phone = validated_data.get('phone', instance.phone)
+        instance.save()
+        return instance
+
+
 class ProductCreateSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)
     city = serializers.PrimaryKeyRelatedField(queryset=City.objects.all())
@@ -149,25 +175,6 @@ class ProductImageSerializer(serializers.ModelSerializer):
         for image in uploaded_images:
             ProductImage.objects.create(product_id=product_id, image=image)
         return uploaded_images
-
-
-class UserSerializer(serializers.ModelSerializer):
-    favorites = serializers.SerializerMethodField('get_favorites')
-
-    class Meta:
-        model = User
-        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'phone', 'favorites')
-
-    def get_favorites(self, obj):
-        return ProductSerializer([fav.product for fav in obj.favorites.all()], many=True, context=self.context).data
-
-    def update(self, instance, validated_data):
-        instance.email = validated_data.get('email', instance.email)
-        instance.first_name = validated_data.get('first_name', instance.first_name)
-        instance.last_name = validated_data.get('last_name', instance.last_name)
-        instance.phone = validated_data.get('phone', instance.phone)
-        instance.save()
-        return instance
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
