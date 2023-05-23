@@ -33,19 +33,26 @@ class CitySerializer(serializers.ModelSerializer):
         fields = ('id', 'name',)
 
 
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'phone')
+
+
 class ProductSerializer(serializers.ModelSerializer):
     images = serializers.SerializerMethodField('get_images_url')
     price_suffix = serializers.CharField(source='get_price_suffix_display')
     city_id = serializers.SerializerMethodField('get_city_id')
     city_name = serializers.SerializerMethodField('get_city_name')
     images = serializers.SerializerMethodField('get_images')
+    author = UserSerializer()
 
     min_price = serializers.SerializerMethodField()
     max_price = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
-        fields = ('id', 'images', 'name', 'description', 'price', 'price_suffix', 'is_lower_bound', 'category', 'city_id', 'city_name', 'min_price', 'max_price',)
+        fields = ('id', 'images', 'name', 'description', 'price', 'price_suffix', 'is_lower_bound', 'category', 'city_id', 'city_name', 'min_price', 'max_price', 'author')
 
     def get_images(self, obj):
         return [{'id': image.id, 'img': image.image.url} for image in obj.images.all()]
@@ -126,10 +133,7 @@ class ProductImageSerializer(serializers.ModelSerializer):
         return uploaded_images
 
 
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'phone')
+
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
