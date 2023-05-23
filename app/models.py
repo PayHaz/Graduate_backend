@@ -44,7 +44,7 @@ class Product(models.Model):
         CANCELED = 'CN', 'Отклонен'
 
     class PriceSuffix(models.TextChoices):
-        NONE = 'N', ''
+        NONE = 'N', 'руб'
         SERVICE = 'S', 'за услугу'
         HOUR = 'H', 'за час'
         UNIT = 'U', 'за единицу'
@@ -76,3 +76,8 @@ class ProductImage(models.Model):
     image = models.ImageField(upload_to='images/%Y/%m/%d', default='default_image.png')
     product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE)
     description = models.TextField(blank=True, default='')
+
+
+class ProductFavorite(models.Model):
+    user = models.ForeignKey(User, related_name='favorites', on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, related_name='subscribers', on_delete=models.CASCADE)

@@ -1,11 +1,6 @@
-import uuid
-
-from django.core.files.base import ContentFile
-from django.db.models import Max, Min
 from rest_framework import serializers
+
 from .models import Category, Product, User, City, ProductFeature, ProductImage
-from PIL import Image
-from io import BytesIO
 
 
 class CategoryHierarchySerializer(serializers.ModelSerializer):
@@ -33,26 +28,32 @@ class CitySerializer(serializers.ModelSerializer):
         fields = ('id', 'name',)
 
 
-class UserSerializer(serializers.ModelSerializer):
+class ProductFeatureSerializer(serializers.ModelSerializer):
     class Meta:
-        model = User
-        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'phone')
+        model = ProductFeature
+        fields = ('name', 'value')
+
+    def update(self, instance, validated_data):
+        instance.name = validated_data.get('name', instance.name)
+        instance.value = validated_data.get('value', instance.value)
+        instance.save()
+        return instance
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    images = serializers.SerializerMethodField('get_images_url')
     price_suffix = serializers.CharField(source='get_price_suffix_display')
     city_id = serializers.SerializerMethodField('get_city_id')
     city_name = serializers.SerializerMethodField('get_city_name')
     images = serializers.SerializerMethodField('get_images')
-    author = UserSerializer()
 
     min_price = serializers.SerializerMethodField()
     max_price = serializers.SerializerMethodField()
+    features = ProductFeatureSerializer(many=True)
+    is_favorite = serializers.SerializerMethodField('is_favorite_method')
 
     class Meta:
         model = Product
-        fields = ('id', 'images', 'name', 'description', 'price', 'price_suffix', 'is_lower_bound', 'category', 'city_id', 'city_name', 'min_price', 'max_price', 'author')
+        fields = ('id', 'images', 'name', 'description', 'price', 'price_suffix', 'is_lower_bound', 'category', 'city_id', 'city_name', 'min_price', 'max_price', 'features', 'is_favorite')
 
     def get_images(self, obj):
         return [{'id': image.id, 'img': image.image.url} for image in obj.images.all()]
@@ -79,18 +80,35 @@ class ProductSerializer(serializers.ModelSerializer):
         else:
             return max(obj.price, max_price_filtered)
 
+    def is_favorite_method(self, obj):
+        user = None
+        request = self.context.get("request")
+        if request and hasattr(request, "user"):
+            user = request.user
+        if user and user.id in [sub.user.id for sub in obj.subscribers.all()]:
+            return True
+        return False
 
-class ProductFeatureSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ProductFeature
-        fields = ('name', 'value')
+    def update(self, instance, validated_data):
+        features_data = validated_data.pop('features', [])
+        instance.features.all().delete()
+        for feature_data in features_data:
+            name = feature_data.get('name')
+            value = feature_data.get('value')
+            ProductFeature.objects.create(product=instance, name=name, value=value)
+
+        for key, value in validated_data.items():
+            setattr(instance, key, value)
+
+        instance.save()
+        return instance
 
 
 class ProductCreateSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)
     city = serializers.PrimaryKeyRelatedField(queryset=City.objects.all())
     category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
-    features = ProductFeatureSerializer(many=True)
+    features = ProductFeatureSerializer(many=True, required=False)
 
     class Meta:
         model = Product
@@ -107,7 +125,7 @@ class ProductCreateSerializer(serializers.ModelSerializer):
         )
 
     def create(self, validated_data):
-        features_data = validated_data.pop('features')
+        features_data = validated_data.pop('features', [])
         product = Product.objects.create(**validated_data)
         for feature in features_data:
             ProductFeature.objects.create(product=product, **feature)
@@ -133,7 +151,29 @@ class ProductImageSerializer(serializers.ModelSerializer):
         return uploaded_images
 
 
+class UserSerializer(serializers.ModelSerializer):
+    favorites = serializers.SerializerMethodField('get_favorites')
 
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'phone', 'favorites')
+
+    def get_favorites(self, obj):
+        return ProductSerializer([fav.product for fav in obj.favorites.all()], many=True, context=self.context).data
+
+    def update(self, instance, validated_data):
+        instance.email = validated_data.get('email', instance.email)
+        instance.first_name = validated_data.get('first_name', instance.first_name)
+        instance.last_name = validated_data.get('last_name', instance.last_name)
+        instance.phone = validated_data.get('phone', instance.phone)
+        instance.save()
+        return instance
+
+
+class UserUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('email', 'first_name', 'last_name', 'phone')
 
 
 class UserCreateSerializer(serializers.ModelSerializer):

@@ -23,4 +23,5 @@ urlpatterns = [
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/register/', UserCreateAPIView.as_view(), name='register'),
     path('api/user/', UserView.as_view()),
+    path('product/<int:product_id>/favorite/', views.create_or_delete_favorite),
 ]

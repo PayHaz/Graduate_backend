@@ -13,8 +13,9 @@ from django.core.exceptions import PermissionDenied
 from rest_framework.permissions import BasePermission
 
 
-from .models import Category, Product, User, City, ProductImage
-from .serializers import CategoryHierarchySerializer, CategorySerializer, ProductSerializer, UserCreateSerializer, UserSerializer, CitySerializer, ProductCreateSerializer, ProductImageSerializer
+from .models import Category, Product, User, City, ProductImage, ProductFavorite
+from .serializers import CategoryHierarchySerializer, CategorySerializer, ProductSerializer, UserCreateSerializer, \
+    UserSerializer, CitySerializer, ProductCreateSerializer, ProductImageSerializer, UserUpdateSerializer
 
 
 @api_view(['GET'])
@@ -53,16 +54,17 @@ class ProductList(generics.ListCreateAPIView):
 
     def list(self, request, **kwargs):
         queryset = self.get_queryset()
+        own = self.request.query_params.get('own', False)
 
         # проверяем наличие jwt токена
-        if request.user.is_authenticated:
+        if request.user.is_authenticated and own:
             # получаем пользователя из токена
             user = request.user
             queryset = queryset.filter(author=user)
         else:
             # если пользователь не аутентифицирован, то фильтруем по x-city-id
-            if 'x-city-id' in request.headers:
-                queryset = queryset.filter(city_id=int(request.headers['x-city-id']))
+            if 'city' in self.request.query_params:
+                queryset = queryset.filter(city_id=int(self.request.query_params['city']))
             else:
                 # если x-city-id не передан, то выводим все продукты со статусом active
                 queryset = queryset.filter(status='AC')
@@ -72,7 +74,7 @@ class ProductList(generics.ListCreateAPIView):
 
         # фильтруем по статусу
         queryset = queryset.filter(status=status).order_by('-created_at')[:20]
-        serializer = ProductSerializer(queryset, many=True)
+        serializer = ProductSerializer(queryset, many=True, context={'request': request})
         return Response(serializer.data)
 
     def perform_create(self, serializer):
@@ -247,12 +249,24 @@ def delete_product_image(request, product_id, image_id):
         return Response(status=404)
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_or_delete_favorite(request, product_id):
+    if ProductFavorite.objects.filter(user_id=request.user.id, product_id=product_id).exists():
+        ProductFavorite.objects.filter(user_id=request.user.id, product_id=product_id).delete()
+        return Response(False, status=200)
+    else:
+        fav = ProductFavorite(user_id=request.user.id, product_id=product_id)
+        fav.save()
+        return Response(True, status=200)
+
+
 class UserView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
     def get(self, request):
-        serializer = UserSerializer(request.user)
+        serializer = UserSerializer(request.user, context={'request': request})
         return Response(serializer.data)
 
 
@@ -265,4 +279,12 @@ class UserCreateAPIView(generics.CreateAPIView):
 class UserRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
+
+    def put(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = UserUpdateSerializer(instance, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
